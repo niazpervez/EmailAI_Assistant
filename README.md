@@ -1,4 +1,4 @@
-# EmailAI Assistant
+# EmailAI Assistant Windows Installer
 
 > Production-ready AI-powered Windows desktop email management application  
 > Built with .NET 9 · WPF · IMAP/SMTP (MailKit) · DeepSeek · SQLite + sqlite-vec
