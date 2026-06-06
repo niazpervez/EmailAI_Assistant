@@ -1,0 +1,203 @@
+<UserControl x:Class="EmailAI.WPF.Views.ChatView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:EmailAI.WPF.ViewModels">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Session sidebar -->
+        <Border Grid.Column="0" Background="{StaticResource NavBgBrush}"
+                BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top" Margin="10,14,10,10">
+                    <Button Content="+ New Chat" Style="{StaticResource PrimaryButton}"
+                            Command="{Binding NewSessionCommand}"
+                            HorizontalAlignment="Stretch" Padding="10,8" FontSize="12"/>
+                </StackPanel>
+
+                <TextBlock DockPanel.Dock="Top" Text="RECENT" FontSize="10" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextMutedBrush}" Margin="14,4,0,6"/>
+
+                <ListBox ItemsSource="{Binding Sessions}"
+                         SelectedItem="{Binding SelectedSession}"
+                         Margin="8,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Label}" Padding="10,8"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextTrimming="CharacterEllipsis" FontSize="12"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- Chat area -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Top bar -->
+            <Border Grid.Row="0" Padding="20,14" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,0,1">
+                <Grid>
+                    <StackPanel>
+                        <TextBlock Text="AI Chat" Style="{StaticResource H2}"/>
+                        <TextBlock Text="Ask anything about your emails — powered by DeepSeek RAG"
+                                   Style="{StaticResource Caption}"/>
+                    </StackPanel>
+                    <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ContextInfo}" Style="{StaticResource Caption}"
+                                   VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Button Content="Clear" Style="{StaticResource GhostButton}"
+                                Command="{Binding ClearSessionCommand}" FontSize="11" Padding="10,5"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Message list -->
+            <ScrollViewer Grid.Row="1" x:Name="MessagesScroll"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="20,16" x:Name="MessagesPanel">
+
+                    <!-- Empty state -->
+                    <StackPanel Visibility="{Binding HasMessages, Converter={StaticResource InverseBoolToVisibility}}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Margin="0,60,0,0">
+                        <TextBlock Text="💬" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                        <TextBlock Text="Ask me anything about your emails" Style="{StaticResource H3}"
+                                   HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                        <TextBlock Style="{StaticResource Body}" HorizontalAlignment="Center" TextAlignment="Center">
+                            Examples: "Summarize today's emails" · "Find shipment delays"
+                            <LineBreak/>"Which customers need urgent replies?" · "Show emails from ABC Corp"
+                        </TextBlock>
+
+                        <!-- Suggestion chips -->
+                        <WrapPanel HorizontalAlignment="Center" Margin="0,20,0,0">
+                            <Button Content="📋 Today's summary" Style="{StaticResource GhostButton}"
+                                    Command="{Binding SuggestionCommand}"
+                                    CommandParameter="Summarize today's emails"
+                                    Margin="4" FontSize="12"/>
+                            <Button Content="🚨 Urgent emails" Style="{StaticResource GhostButton}"
+                                    Command="{Binding SuggestionCommand}"
+                                    CommandParameter="Show me all urgent or important emails"
+                                    Margin="4" FontSize="12"/>
+                            <Button Content="📦 Shipment delays" Style="{StaticResource GhostButton}"
+                                    Command="{Binding SuggestionCommand}"
+                                    CommandParameter="Find all shipment delay discussions"
+                                    Margin="4" FontSize="12"/>
+                            <Button Content="💰 Payment issues" Style="{StaticResource GhostButton}"
+                                    Command="{Binding SuggestionCommand}"
+                                    CommandParameter="Show emails about payment delays or issues"
+                                    Margin="4" FontSize="12"/>
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <!-- Messages -->
+                    <ItemsControl ItemsSource="{Binding Messages}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:ChatMessageItem}">
+                                <Grid Margin="0,0,0,16">
+                                    <!-- User message (right aligned) -->
+                                    <Border HorizontalAlignment="Right" MaxWidth="560"
+                                            Visibility="{Binding IsUser, Converter={StaticResource BoolToVisibility}}"
+                                            Background="{StaticResource UserBubbleBrush}"
+                                            CornerRadius="14,14,4,14" Padding="14,10">
+                                        <TextBlock Text="{Binding Content}" TextWrapping="Wrap"
+                                                   Foreground="White" FontSize="13" LineHeight="20"/>
+                                    </Border>
+
+                                    <!-- AI message (left aligned) -->
+                                    <StackPanel HorizontalAlignment="Left" MaxWidth="640"
+                                                Visibility="{Binding IsAssistant, Converter={StaticResource BoolToVisibility}}">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                            <Border Width="24" Height="24" CornerRadius="12"
+                                                    Background="{StaticResource AccentBrush}">
+                                                <TextBlock Text="AI" FontSize="9" FontWeight="Bold"
+                                                           Foreground="White" HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                            </Border>
+                                            <TextBlock Text="EmailAI" FontSize="11" FontWeight="Medium"
+                                                       Margin="6,0,0,0" VerticalAlignment="Center"
+                                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding TimeText}" FontSize="10"
+                                                       Margin="8,0,0,0" VerticalAlignment="Center"
+                                                       Foreground="{StaticResource TextMutedBrush}"/>
+                                        </StackPanel>
+                                        <Border Background="{StaticResource AiBubbleBrush}"
+                                                CornerRadius="4,14,14,14" Padding="14,10">
+                                            <TextBlock Text="{Binding Content}" TextWrapping="Wrap"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       FontSize="13" LineHeight="22"/>
+                                        </Border>
+                                        <!-- Source emails -->
+                                        <TextBlock Text="{Binding SourcesText}"
+                                                   Visibility="{Binding HasSources, Converter={StaticResource BoolToVisibility}}"
+                                                   FontSize="10" Foreground="{StaticResource TextMutedBrush}"
+                                                   Margin="6,4,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Typing indicator -->
+                    <StackPanel Orientation="Horizontal"
+                                Visibility="{Binding IsThinking, Converter={StaticResource BoolToVisibility}}"
+                                Margin="0,4,0,0">
+                        <Border Width="24" Height="24" CornerRadius="12" Background="{StaticResource AccentBrush}">
+                            <TextBlock Text="AI" FontSize="9" FontWeight="Bold" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border Background="{StaticResource AiBubbleBrush}" CornerRadius="4,14,14,14"
+                                Padding="14,10" Margin="8,0,0,0">
+                            <TextBlock Text="Thinking…" FontSize="13"
+                                       Foreground="{StaticResource TextMutedBrush}"/>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Input area -->
+            <Border Grid.Row="2" Padding="20,12" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,1,0,0"
+                    Background="{StaticResource PrimaryBrush}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Background="{StaticResource SurfaceElevatedBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="12" Margin="0,0,8,0">
+                        <TextBox x:Name="InputBox"
+                                 Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
+                                 Background="Transparent" BorderThickness="0"
+                                 Foreground="{StaticResource TextPrimaryBrush}"
+                                 CaretBrush="{StaticResource AccentBrush}"
+                                 FontSize="13" Padding="14,10"
+                                 AcceptsReturn="False"
+                                 VerticalAlignment="Center"
+                                 MaxHeight="100">
+                            <TextBox.InputBindings>
+                                <KeyBinding Key="Return" Command="{Binding SendCommand}"/>
+                            </TextBox.InputBindings>
+                        </TextBox>
+                    </Border>
+                    <Button Grid.Column="1" Style="{StaticResource PrimaryButton}"
+                            Command="{Binding SendCommand}"
+                            IsEnabled="{Binding CanSend}"
+                            Width="44" Height="44" Padding="0">
+                        <TextBlock Text="↑" FontSize="18" FontWeight="Bold"/>
+                    </Button>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

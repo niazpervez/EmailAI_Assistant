@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    EmailAI Assistant — WiX 4 MSI Installer
+    Build with: dotnet tool install --global wix
+                wix build EmailAI.Installer.wxs -o EmailAIAssistant-Setup.msi
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+    <Package Name="EmailAI Assistant"
+             Version="1.0.0.0"
+             Manufacturer="EmailAI"
+             UpgradeCode="12345678-1234-1234-1234-123456789012"
+             Language="1033"
+             Codepage="1252"
+             InstallerVersion="500">
+
+        <!-- ── Upgrade handling ────────────────────────────────────── -->
+        <MajorUpgrade DowngradeErrorMessage="A newer version of EmailAI Assistant is already installed." />
+
+        <!-- ── Media ──────────────────────────────────────────────── -->
+        <MediaTemplate EmbedCab="yes"/>
+
+        <!-- ── Properties ─────────────────────────────────────────── -->
+        <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER"/>
+        <Property Id="ARPPRODUCTICON" Value="EmailAI.ico"/>
+        <Property Id="ARPHELPLINK" Value="https://github.com/your-org/emailai"/>
+        <Property Id="ARPNOREPAIR" Value="1"/>
+
+        <!-- ── UI ─────────────────────────────────────────────────── -->
+        <UIRef Id="WixUI_InstallDir"/>
+        <WixVariable Id="WixUILicenseRtf" Value="License.rtf"/>
+
+        <!-- ── Directory structure ────────────────────────────────── -->
+        <StandardDirectory Id="ProgramFiles64Folder">
+            <Directory Id="INSTALLFOLDER" Name="EmailAI Assistant">
+                <Directory Id="NativeFolder" Name="native"/>
+            </Directory>
+        </StandardDirectory>
+
+        <StandardDirectory Id="ProgramMenuFolder">
+            <Directory Id="ApplicationProgramsFolder" Name="EmailAI Assistant"/>
+        </StandardDirectory>
+
+        <StandardDirectory Id="DesktopFolder"/>
+
+        <!-- ── Components ─────────────────────────────────────────── -->
+        <ComponentGroup Id="ApplicationFiles" Directory="INSTALLFOLDER">
+
+            <!-- Main executable (self-contained single file) -->
+            <Component Id="MainExe" Guid="AABBCCDD-1234-5678-ABCD-EF1234567890">
+                <File Id="EmailAIExe"
+                      Source="$(var.PublishDir)\EmailAI.WPF.exe"
+                      Name="EmailAI.WPF.exe"
+                      KeyPath="yes"/>
+                <Shortcut Id="DesktopShortcut"
+                          Directory="DesktopFolder"
+                          Name="EmailAI Assistant"
+                          Description="AI-powered email management"
+                          Icon="EmailAI.ico"
+                          WorkingDirectory="INSTALLFOLDER"
+                          Advertise="no"/>
+                <Shortcut Id="StartMenuShortcut"
+                          Directory="ApplicationProgramsFolder"
+                          Name="EmailAI Assistant"
+                          Description="AI-powered email management"
+                          Icon="EmailAI.ico"
+                          WorkingDirectory="INSTALLFOLDER"
+                          Advertise="no"/>
+                <RemoveFolder Id="RemoveStartMenu" Directory="ApplicationProgramsFolder" On="uninstall"/>
+                <RegistryValue Root="HKCU"
+                               Key="Software\EmailAI\EmailAIAssistant"
+                               Name="Installed" Type="integer" Value="1" KeyPath="no"/>
+            </Component>
+
+            <!-- sqlite-vec native extension -->
+            <Component Id="VecExtension" Guid="BBCCDDEE-2345-6789-BCDE-F23456789012">
+                <File Id="Vec0Dll"
+                      Source="$(var.PublishDir)\native\vec0.dll"
+                      Name="vec0.dll"
+                      KeyPath="yes"
+                      Subdirectory="native"/>
+            </Component>
+
+        </ComponentGroup>
+
+        <!-- App icon resource -->
+        <Icon Id="EmailAI.ico" SourceFile="$(var.SrcDir)\Assets\icon.ico"/>
+
+        <!-- ── Features ────────────────────────────────────────────── -->
+        <Feature Id="ProductFeature" Title="EmailAI Assistant" Level="1">
+            <ComponentGroupRef Id="ApplicationFiles"/>
+        </Feature>
+
+        <!-- ── Registry: auto-start (optional) ───────────────────── -->
+        <!--
+        <Component Id="AutoStart" Guid="CCDDEEFF-3456-7890-CDEF-012345678901" Directory="INSTALLFOLDER">
+            <RegistryValue Root="HKCU"
+                           Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+                           Name="EmailAIAssistant"
+                           Value="[INSTALLFOLDER]EmailAI.WPF.exe"
+                           Type="string"
+                           KeyPath="yes"/>
+        </Component>
+        -->
+
+    </Package>
+</Wix>

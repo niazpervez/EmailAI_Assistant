@@ -1,0 +1,26 @@
+## .NET
+**/bin/
+**/obj/
+**/publish/
+*.user
+.vs/
+
+## SQLite (local user data — never commit)
+**/*.db
+**/*.db-wal
+**/*.db-shm
+
+## Secrets
+**/Secrets.cs
+**/appsettings.Production.json
+
+## Build installers
+**/*.msi
+**/*.cab
+EmailAIAssistant-*-Setup.msi
+
+## IDE / OS
+.idea/
+*.suo
+*.cache
+Thumbs.db

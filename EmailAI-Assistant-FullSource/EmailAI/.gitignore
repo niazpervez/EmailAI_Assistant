@@ -1,0 +1,30 @@
+## .NET
+bin/
+obj/
+publish/
+*.user
+.vs/
+
+## SQLite runtime files
+*.db
+*.db-wal
+*.db-shm
+
+## Secrets (never commit)
+src/EmailAI.WPF/Secrets.cs
+appsettings.Production.json
+
+## Build output
+EmailAIAssistant-*-Setup.msi
+*.msi
+*.cab
+
+## IDE
+.idea/
+*.suo
+*.cache
+Thumbs.db
+
+## Local dev tools (smoke tests)
+tools/**/bin/
+tools/**/obj/
