@@ -13,6 +13,7 @@
             <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
             <conv:InverseBoolConverter             x:Key="InverseBool"/>
             <conv:StringNotEmptyConverter          x:Key="StringNotEmpty"/>
+            <conv:HexToBrushConverter              x:Key="HexToBrush"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

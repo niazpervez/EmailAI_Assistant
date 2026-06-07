@@ -19,7 +19,7 @@ if (!File.Exists(dbPath))
 
 var services = new ServiceCollection();
 services.AddSingleton(_ => new DatabaseConnectionFactory(dbPath));
-services.AddSingleton<IEncryptionService, DpapiEncryptionService>();
+services.AddSingleton<IEncryptionService, PlatformEncryptionService>();
 services.AddSingleton<ISettingsRepository, SettingsRepository>();
 services.AddTransient<DeepSeekAuthHandler>();
 services.AddHttpClient<DeepSeekAIService>((_, http) =>

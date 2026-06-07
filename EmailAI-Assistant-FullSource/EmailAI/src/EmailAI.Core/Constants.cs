@@ -35,9 +35,17 @@ public static class AppConstants
 {
     public static readonly string[] DefaultFolders = ["Inbox", "Sent", "Archive", "Trash"];
     public const int DefaultSyncIntervalMinutes = 15;
-    public const int DefaultTopK = 10;
+    public const int DefaultTopK = 15;
     public const int MaxContextEmails = 15;
     public const int MaxBodyLength = 4000;
+    public const int MaxAttachmentContextLength = 3000;
+    public const int ChunkSizeChars = 1500;
+    public const int ChunkOverlapChars = 200;
+    public const int ChunkSearchTopK = 40;
+    public const int MaxThreadEmails = 8;
+    public const int ChunkBackfillBatchSize = 50;
+    public const int MaxSummaryEmails = 20;
+    public const int ChatTimeoutSeconds = 120;
     public const string DeepSeekChatModel = "deepseek-chat";
     public const string DeepSeekEmbeddingModel = "deepseek-reasoner"; // fallback: use OpenAI-compatible embedding
     public const int EmbeddingDimensions = 1536;

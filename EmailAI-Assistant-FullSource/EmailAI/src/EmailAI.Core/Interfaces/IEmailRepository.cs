@@ -1,4 +1,5 @@
 using EmailAI.Core.Entities;
+using EmailAI.Core.Models;
 
 namespace EmailAI.Core.Interfaces;
 
@@ -19,4 +20,9 @@ public interface IEmailRepository
     Task UpsertBatchAsync(IEnumerable<Email> emails, CancellationToken ct = default);
     Task<IEnumerable<Email>> GetByIdsAsync(IEnumerable<string> emailIds, CancellationToken ct = default);
     Task<IEnumerable<Email>> GetRecentAsync(int days = 7, int limit = 100, CancellationToken ct = default);
+    Task<IEnumerable<Email>> GetWithUnprocessedAttachmentsAsync(int limit = 50, CancellationToken ct = default);
+    Task<IEnumerable<Email>> GetByConversationIdAsync(string conversationId, int limit = 20, CancellationToken ct = default);
+    Task<IEnumerable<FolderSummary>> GetFolderSummariesAsync(CancellationToken ct = default);
+    Task<IEnumerable<Email>> GetRecentSentAsync(int days = 14, int limit = 100, CancellationToken ct = default);
+    Task<Email?> FindFirstReplyToAsync(Email sentEmail, CancellationToken ct = default);
 }

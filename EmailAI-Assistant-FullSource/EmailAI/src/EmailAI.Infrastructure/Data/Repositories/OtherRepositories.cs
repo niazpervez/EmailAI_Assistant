@@ -54,6 +54,46 @@ public sealed class AttachmentRepository : IAttachmentRepository
             "SELECT COUNT(1) FROM Attachments WHERE AttachmentId = @attachmentId",
             new { attachmentId }) > 0;
     }
+
+    public async Task<string> GetCombinedExtractedTextAsync(string emailId, int maxLength = 4000, CancellationToken ct = default)
+    {
+        await using var c = await _factory.OpenAsync(ct);
+        var rows = await c.QueryAsync<(string FileName, string ExtractedText)>(
+            """
+            SELECT FileName, ExtractedText FROM Attachments
+            WHERE EmailId = @emailId AND IsTextExtracted = 1
+            ORDER BY FileName
+            """,
+            new { emailId });
+
+        var sb = new System.Text.StringBuilder();
+        foreach (var (fileName, text) in rows)
+        {
+            if (string.IsNullOrWhiteSpace(text)) continue;
+            sb.AppendLine($"[{fileName}]");
+            sb.AppendLine(text);
+            sb.AppendLine();
+            if (sb.Length >= maxLength) break;
+        }
+
+        var combined = sb.ToString().Trim();
+        return combined.Length <= maxLength ? combined : combined[..maxLength] + "…";
+    }
+
+    public async Task<IEnumerable<string>> SearchEmailIdsByExtractedTextAsync(string keyword, int limit = 20, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(keyword)) return [];
+
+        await using var c = await _factory.OpenAsync(ct);
+        return await c.QueryAsync<string>(
+            """
+            SELECT DISTINCT EmailId FROM Attachments
+            WHERE IsTextExtracted = 1
+              AND (ExtractedText LIKE @kw OR FileName LIKE @kw)
+            LIMIT @limit
+            """,
+            new { kw = $"%{keyword}%", limit });
+    }
 }
 
 // ── SyncState ────────────────────────────────────────────────────────────────

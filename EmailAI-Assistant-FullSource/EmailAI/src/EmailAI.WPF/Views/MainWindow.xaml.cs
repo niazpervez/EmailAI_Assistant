@@ -1,4 +1,4 @@
-using EmailAI.WPF.ViewModels;
+using EmailAI.UI.Shared.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using System.Windows;
 

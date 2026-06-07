@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="EmailAI.MAUI.Pages.EmailListPage"
+             Title="Mail"
+             BackgroundColor="#1A1F2E">
+    <Grid RowDefinitions="Auto,*,*" RowSpacing="8" Padding="12">
+        <SearchBar Grid.Row="0" Text="{Binding SearchQuery}" Placeholder="Search emails…" SearchCommand="{Binding SearchCommand}"/>
+
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Emails}" SelectedItem="{Binding SelectedEmail}" SelectionMode="Single">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="0,4" Padding="12" BackgroundColor="#252B3B" Stroke="#353C52">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="{Binding Subject}" TextColor="#F0F2F8" FontAttributes="Bold"/>
+                            <Label Text="{Binding SenderDisplay}" TextColor="#8B95B0" FontSize="12"/>
+                            <Label Text="{Binding DateDisplay}" TextColor="#5A6480" FontSize="11"/>
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <ScrollView Grid.Row="2">
+            <Label Text="{Binding DisplayBodyText}" TextColor="#8B95B0"/>
+        </ScrollView>
+
+        <ActivityIndicator Grid.RowSpan="3" IsRunning="{Binding IsLoading}" Color="#4F8EF7" VerticalOptions="Center"/>
+    </Grid>
+</ContentPage>

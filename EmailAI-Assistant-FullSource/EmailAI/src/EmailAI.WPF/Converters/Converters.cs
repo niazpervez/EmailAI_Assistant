@@ -35,6 +35,28 @@ public sealed class InverseBoolConverter : IValueConverter
         => value is bool b && !b;
 }
 
+[ValueConversion(typeof(string), typeof(Brush))]
+public sealed class HexToBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is not string hex || string.IsNullOrWhiteSpace(hex))
+            return Brushes.Gray;
+
+        try
+        {
+            return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)!);
+        }
+        catch
+        {
+            return Brushes.Gray;
+        }
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
 [ValueConversion(typeof(string), typeof(bool))]
 public sealed class StringNotEmptyConverter : IValueConverter
 {

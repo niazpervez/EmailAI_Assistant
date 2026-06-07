@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="EmailAI.MAUI.Pages.SettingsPage"
+             Title="Settings"
+             BackgroundColor="#1A1F2E">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="12">
+            <Label Text="DeepSeek API Key" TextColor="#F0F2F8" FontAttributes="Bold"/>
+            <Entry x:Name="ApiKeyEntry" IsPassword="True" Placeholder="sk-..." TextColor="#F0F2F8" BackgroundColor="#252B3B"/>
+            <Button Text="Save API Key" Clicked="SaveApiKey_Click" BackgroundColor="#4F8EF7"/>
+            <Label Text="{Binding ApiKeyStatus}" TextColor="{Binding ApiKeyStatusColor, Converter={StaticResource HexToColor}}"/>
+
+            <Label Text="Model" TextColor="#F0F2F8" Margin="0,12,0,0"/>
+            <Picker ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding SelectedModel}" TextColor="#F0F2F8"/>
+
+            <Label Text="Sync interval" TextColor="#F0F2F8"/>
+            <Picker ItemsSource="{Binding SyncIntervals}" SelectedItem="{Binding SelectedInterval}" TextColor="#F0F2F8"/>
+
+            <Switch IsToggled="{Binding SyncAllFolders}" OnColor="#4F8EF7"/>
+            <Label Text="Sync all folders" TextColor="#8B95B0"/>
+
+            <Button Text="Save Settings" Command="{Binding SaveCommand}" BackgroundColor="#3ECF8E" TextColor="#1A1F2E"/>
+            <Label Text="{Binding SaveStatus}" TextColor="{Binding SaveStatusColor, Converter={StaticResource HexToColor}}"/>
+            <Label Text="{Binding DatabasePath}" TextColor="#5A6480" FontSize="11"/>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="EmailAI.MAUI.Pages.ChatPage"
+             Title="AI Chat"
+             BackgroundColor="#1A1F2E">
+    <Grid RowDefinitions="*,Auto,Auto" Padding="16">
+        <CollectionView Grid.Row="0" ItemsSource="{Binding Messages}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="0,6" Padding="12"
+                            BackgroundColor="{Binding IsUser, Converter={StaticResource BoolToBubbleColor}}">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="{Binding Content}" TextColor="#F0F2F8"/>
+                            <Label Text="{Binding TimeText}" FontSize="10" TextColor="#5A6480"/>
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <Label Grid.Row="1" Text="{Binding ContextInfo}" TextColor="#8B95B0" FontSize="12"/>
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Entry Text="{Binding InputText}" Placeholder="Ask about your emails…" TextColor="#F0F2F8" BackgroundColor="#252B3B"/>
+            <Button Grid.Column="1" Text="Send" Command="{Binding SendCommand}" BackgroundColor="#4F8EF7"/>
+        </Grid>
+        <ActivityIndicator Grid.RowSpan="3" IsRunning="{Binding IsThinking}" Color="#4F8EF7" VerticalOptions="Center"/>
+    </Grid>
+</ContentPage>

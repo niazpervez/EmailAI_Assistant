@@ -20,6 +20,7 @@ public class Email
     public string Importance { get; set; } = "normal";
     public DateTime SyncedAt { get; set; } = DateTime.UtcNow;
     public string? ChangeKey { get; set; }                     // For incremental sync
+    public string MessageId { get; set; } = string.Empty;     // RFC Message-ID for reply threading
 
     // Navigation
     public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();

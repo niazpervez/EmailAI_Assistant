@@ -1,4 +1,5 @@
 using EmailAI.Core.Entities;
+using EmailAI.Core.DTOs;
 
 namespace EmailAI.Core.Interfaces;
 
@@ -9,6 +10,8 @@ public interface IAttachmentRepository
     Task<int> InsertAsync(Attachment attachment, CancellationToken ct = default);
     Task UpdateExtractedTextAsync(int id, string text, CancellationToken ct = default);
     Task<bool> ExistsAsync(string attachmentId, CancellationToken ct = default);
+    Task<string> GetCombinedExtractedTextAsync(string emailId, int maxLength = 4000, CancellationToken ct = default);
+    Task<IEnumerable<string>> SearchEmailIdsByExtractedTextAsync(string keyword, int limit = 20, CancellationToken ct = default);
 }
 
 public interface IEmbeddingRepository
@@ -44,4 +47,16 @@ public interface ISettingsRepository
     Task SetAsync(string key, string value, bool encrypt = false, CancellationToken ct = default);
     Task<Dictionary<string, string>> GetAllAsync(CancellationToken ct = default);
     Task DeleteAsync(string key, CancellationToken ct = default);
+}
+
+public interface IChunkRepository
+{
+    Task<bool> ExistsForEmailAsync(string emailId, CancellationToken ct = default);
+    Task DeleteByEmailIdAsync(string emailId, CancellationToken ct = default);
+    Task InsertBatchAsync(IEnumerable<EmailChunk> chunks, CancellationToken ct = default);
+    Task UpsertEmbeddingAsync(string chunkId, string emailId, float[] vector, string modelName, CancellationToken ct = default);
+    Task<IEnumerable<ChunkSearchHit>> FindSimilarChunksAsync(float[] queryVector, int topK = 40, CancellationToken ct = default);
+    Task<IEnumerable<ChunkSearchHit>> SearchByKeywordAsync(string keyword, int limit = 30, CancellationToken ct = default);
+    Task<IEnumerable<string>> GetUnindexedEmailIdsAsync(int limit = 50, CancellationToken ct = default);
+    Task<int> GetIndexedEmailCountAsync(CancellationToken ct = default);
 }

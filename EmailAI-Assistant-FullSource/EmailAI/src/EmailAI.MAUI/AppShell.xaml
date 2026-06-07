@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell x:Class="EmailAI.MAUI.AppShell"
+       xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:pages="clr-namespace:EmailAI.MAUI.Pages"
+       FlyoutBackgroundColor="#141824"
+       Shell.ForegroundColor="#F0F2F8"
+       Shell.TitleColor="#F0F2F8"
+       Shell.NavBarHasShadow="False"
+       Title="EmailAI Assistant">
+
+    <Shell.FlyoutHeader>
+        <Grid Padding="20" BackgroundColor="#141824" RowDefinitions="Auto,Auto,Auto">
+            <HorizontalStackLayout Grid.Row="0" Spacing="12">
+                <Border WidthRequest="40" HeightRequest="40" StrokeShape="RoundRectangle 20" BackgroundColor="#4F8EF7">
+                    <Label Text="{Binding UserInitial}" HorizontalOptions="Center" VerticalOptions="Center" FontAttributes="Bold" TextColor="White"/>
+                </Border>
+                <VerticalStackLayout VerticalOptions="Center">
+                    <Label Text="{Binding UserName}" FontAttributes="Bold" TextColor="#F0F2F8"/>
+                    <Label Text="{Binding UserEmail}" FontSize="12" TextColor="#5A6480"/>
+                </VerticalStackLayout>
+            </HorizontalStackLayout>
+            <Label Grid.Row="1" Margin="0,12,0,0" Text="{Binding SyncStatusText}" FontSize="12" TextColor="#8B95B0"/>
+            <Label Grid.Row="2" Text="{Binding LastSyncText}" FontSize="11" TextColor="#5A6480"/>
+        </Grid>
+    </Shell.FlyoutHeader>
+
+    <FlyoutItem Title="Dashboard" Route="dashboard">
+        <ShellContent Title="Dashboard" ContentTemplate="{DataTemplate pages:DashboardPage}" Route="dashboard" />
+    </FlyoutItem>
+    <FlyoutItem Title="AI Chat" Route="chat">
+        <ShellContent Title="AI Chat" ContentTemplate="{DataTemplate pages:ChatPage}" Route="chat" />
+    </FlyoutItem>
+    <FlyoutItem Title="Inbox" Route="inbox">
+        <ShellContent Title="Inbox" ContentTemplate="{DataTemplate pages:EmailListPage}" Route="inbox" />
+    </FlyoutItem>
+    <FlyoutItem Title="Search" Route="search">
+        <ShellContent Title="Search" ContentTemplate="{DataTemplate pages:EmailListPage}" Route="search" />
+    </FlyoutItem>
+    <FlyoutItem Title="Sync" Route="sync">
+        <ShellContent Title="Sync" ContentTemplate="{DataTemplate pages:SyncPage}" Route="sync" />
+    </FlyoutItem>
+    <FlyoutItem Title="Settings" Route="settings">
+        <ShellContent Title="Settings" ContentTemplate="{DataTemplate pages:SettingsPage}" Route="settings" />
+    </FlyoutItem>
+</Shell>

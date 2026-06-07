@@ -19,6 +19,11 @@
     <Color x:Key="NavBgColor">#141824</Color>
     <Color x:Key="UserBubbleColor">#4F8EF7</Color>
     <Color x:Key="AiBubbleColor">#2D3548</Color>
+    <Color x:Key="ChatTableBgColor">#1E2433</Color>
+    <Color x:Key="ChatTableHeaderColor">#354060</Color>
+    <Color x:Key="ChatTableRowColor">#252B3B</Color>
+    <Color x:Key="ChatTableRowAltColor">#2A3144</Color>
+    <Color x:Key="ChatInsightBgColor">#1A2235</Color>
 
     <!-- ── Brushes ────────────────────────────────────────────────────── -->
     <SolidColorBrush x:Key="PrimaryBrush"         Color="{StaticResource PrimaryColor}"/>
@@ -38,6 +43,12 @@
     <SolidColorBrush x:Key="NavBgBrush"           Color="{StaticResource NavBgColor}"/>
     <SolidColorBrush x:Key="UserBubbleBrush"      Color="{StaticResource UserBubbleColor}"/>
     <SolidColorBrush x:Key="AiBubbleBrush"        Color="{StaticResource AiBubbleColor}"/>
+    <SolidColorBrush x:Key="ChatTableBgBrush"     Color="{StaticResource ChatTableBgColor}"/>
+    <SolidColorBrush x:Key="ChatTableHeaderBrush" Color="{StaticResource ChatTableHeaderColor}"/>
+    <SolidColorBrush x:Key="ChatTableRowBrush"    Color="{StaticResource ChatTableRowColor}"/>
+    <SolidColorBrush x:Key="ChatTableRowAltBrush" Color="{StaticResource ChatTableRowAltColor}"/>
+    <SolidColorBrush x:Key="ChatInsightBgBrush"  Color="{StaticResource ChatInsightBgColor}"/>
+    <SolidColorBrush x:Key="ChatAccentSoftBrush"  Color="#334F8EF7"/>
 
     <!-- Transparent -->
     <SolidColorBrush x:Key="TransparentBrush"     Color="Transparent"/>

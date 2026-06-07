@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="EmailAI.MAUI.Pages.DashboardPage"
+             Title="Dashboard"
+             BackgroundColor="#1A1F2E">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Label Text="{Binding SubtitleText}" TextColor="#8B95B0" FontSize="14"/>
+            <Label Text="{Binding DateDisplay}" TextColor="#F0F2F8" FontSize="22" FontAttributes="Bold"/>
+            <Label Text="{Binding LastSyncDisplay}" TextColor="#4F8EF7" FontSize="12"/>
+
+            <CollectionView ItemsSource="{Binding KpiCards}">
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout Orientation="Vertical" Span="2"/>
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="4" Padding="16" BackgroundColor="#252B3B" Stroke="#353C52">
+                            <VerticalStackLayout Spacing="6">
+                                <Label Text="{Binding Icon}" FontSize="20"/>
+                                <Label Text="{Binding Value}" FontSize="24" FontAttributes="Bold" TextColor="#F0F2F8"/>
+                                <Label Text="{Binding Label}" TextColor="#8B95B0" FontSize="12"/>
+                                <Label Text="{Binding Subtitle}" TextColor="#5A6480" FontSize="11"/>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <HorizontalStackLayout Spacing="8">
+                <Button Text="Refresh" Command="{Binding RefreshDashboardCommand}" BackgroundColor="#4F8EF7"/>
+                <Button Text="Refresh Actions" Command="{Binding RefreshActionItemsCommand}" BackgroundColor="#2D3548" TextColor="#F0F2F8"/>
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="8">
+                <Button Text="Daily Summary" Command="{Binding DailySummaryCommand}" BackgroundColor="#2D3548" TextColor="#F0F2F8"/>
+                <Button Text="Weekly Summary" Command="{Binding WeeklySummaryCommand}" BackgroundColor="#2D3548" TextColor="#F0F2F8"/>
+            </HorizontalStackLayout>
+
+            <ActivityIndicator IsRunning="{Binding IsLoadingSummary}" Color="#4F8EF7"/>
+            <Label Text="{Binding SummaryTitle}" IsVisible="{Binding HasSummary}" TextColor="#F0F2F8" FontAttributes="Bold"/>
+            <Label Text="{Binding SummaryText}" IsVisible="{Binding HasSummary}" TextColor="#8B95B0"/>
+
+            <!-- Sent follow-ups -->
+            <Border Padding="14" BackgroundColor="#252B3B" Stroke="#353C52">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="📤 Sent Follow-ups" FontAttributes="Bold" TextColor="#F0F2F8" FontSize="16"/>
+                    <Label Text="Reminders and follow-ups from Sent — status based on replies received"
+                           TextColor="#8B95B0" FontSize="11"/>
+
+                    <CollectionView ItemsSource="{Binding FollowUpCards}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,4" Padding="12" BackgroundColor="#1A1F2E" Stroke="#353C52">
+                                    <VerticalStackLayout Spacing="4">
+                                        <Label Text="{Binding Subject}" TextColor="#F0F2F8" FontSize="13" LineBreakMode="TailTruncation"/>
+                                        <Label Text="{Binding Recipient, StringFormat='To: {0}'}" TextColor="#8B95B0" FontSize="11"/>
+                                        <Label Text="{Binding SentDateText}" TextColor="#5A6480" FontSize="10"/>
+                                        <Border Padding="6,3" BackgroundColor="#264F8EF7" HorizontalOptions="Start">
+                                            <Label Text="{Binding StatusLabel}" TextColor="#4F8EF7" FontSize="10"/>
+                                        </Border>
+                                        <Label Text="{Binding ReplyDetail}" TextColor="#8B95B0" FontSize="11"/>
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+
+                    <Label Text="No sent follow-ups in the last 14 days."
+                           IsVisible="{Binding HasFollowUpItems, Converter={StaticResource InvertedBool}}"
+                           TextColor="#5A6480" FontSize="11"/>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Action items -->
+            <Label Text="⚡ AI Action Items" FontAttributes="Bold" TextColor="#F0F2F8" FontSize="16"/>
+            <Label Text="From inbox today + sent follow-ups awaiting reply" TextColor="#8B95B0" FontSize="11"/>
+            <ActivityIndicator IsRunning="{Binding IsLoadingActions}" Color="#4F8EF7"/>
+            <CollectionView ItemsSource="{Binding ActionItemCards}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,4" Padding="12" BackgroundColor="#252B3B" Stroke="#353C52">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="{Binding Action}" TextColor="#F0F2F8"/>
+                                <Label Text="{Binding Responsible}" IsVisible="{Binding HasResponsible}" TextColor="#8B95B0" FontSize="12"/>
+                                <Label Text="{Binding Deadline}" IsVisible="{Binding HasDeadline}" TextColor="#8B95B0" FontSize="12"/>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Top senders -->
+            <Border Padding="14" BackgroundColor="#252B3B" Stroke="#353C52">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="👥 Top Senders" FontAttributes="Bold" TextColor="#F0F2F8" FontSize="16"/>
+                    <Label Text="Most active in Inbox" TextColor="#8B95B0" FontSize="11"/>
+                    <CollectionView ItemsSource="{Binding TopSenders}">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,6">
+                                    <Border Width="36" Height="36" BackgroundColor="#1A1F2E" StrokeShape="RoundRectangle 18">
+                                        <Label Text="{Binding Initial}" TextColor="#4F8EF7" FontAttributes="Bold"
+                                               HorizontalOptions="Center" VerticalOptions="Center"/>
+                                    </Border>
+                                    <VerticalStackLayout Grid.Column="1" Margin="10,0,0,0" VerticalOptions="Center">
+                                        <Label Text="{Binding DisplayName}" TextColor="#F0F2F8" FontSize="12"/>
+                                        <Label Text="{Binding Email}" TextColor="#5A6480" FontSize="10" LineBreakMode="TailTruncation"/>
+                                    </VerticalStackLayout>
+                                    <Label Grid.Column="2" Text="{Binding Count}" TextColor="#4F8EF7" FontAttributes="Bold" VerticalOptions="Center"/>
+                                </Grid>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

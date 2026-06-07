@@ -6,8 +6,80 @@
         <StackPanel Margin="28,24,28,24" MaxWidth="760">
 
             <TextBlock Text="Email Sync" Style="{StaticResource H1}" Margin="0,0,0,4"/>
-            <TextBlock Text="Connect any email provider via IMAP — Gmail, Yahoo, Outlook/Hotmail, and more"
+            <TextBlock Text="Connect any email provider via IMAP — or import settings from Outlook / Thunderbird"
                        Style="{StaticResource Body}" Margin="0,0,0,24"/>
+
+            <!-- Import from Outlook / Thunderbird -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,16"
+                    Visibility="{Binding ShowImportSection, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                        <TextBlock Text="Import from existing mail client" Style="{StaticResource H3}"/>
+                        <Button Content="↻ Scan again" HorizontalAlignment="Right"
+                                Style="{StaticResource GhostButton}"
+                                Command="{Binding ScanAccountsCommand}"
+                                IsEnabled="{Binding IsScanningAccounts, Converter={StaticResource InverseBool}}"
+                                FontSize="11" Padding="10,4"/>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Style="{StaticResource Caption}" Margin="0,0,16,0"
+                                   Visibility="{Binding OutlookDetected, Converter={StaticResource BoolToVisibility}}">
+                            <Run Text="✓ " Foreground="{StaticResource SuccessBrush}"/>
+                            <Run Text="Microsoft Outlook detected"/>
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource Caption}"
+                                   Visibility="{Binding ThunderbirdDetected, Converter={StaticResource BoolToVisibility}}">
+                            <Run Text="✓ " Foreground="{StaticResource SuccessBrush}"/>
+                            <Run Text="Mozilla Thunderbird detected"/>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding ImportStatusText}" Style="{StaticResource Body}"
+                               TextWrapping="Wrap" Margin="0,0,0,10"
+                               Foreground="{StaticResource TextSecondaryBrush}"/>
+
+                    <ListBox ItemsSource="{Binding DiscoveredAccounts}"
+                             SelectedItem="{Binding SelectedDiscoveredAccount}"
+                             MaxHeight="140" Margin="0,0,0,10"
+                             Background="{StaticResource SurfaceElevatedBrush}"
+                             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="4,2">
+                                    <TextBlock FontSize="13" FontWeight="Medium"
+                                               Foreground="{StaticResource TextPrimaryBrush}">
+                                        <Run Text="{Binding SourceLabel, Mode=OneWay}"/>
+                                        <Run Text=" — "/>
+                                        <Run Text="{Binding Email, Mode=OneWay}"/>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding Summary}" Style="{StaticResource Caption}"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button Content="Use selected account" Style="{StaticResource PrimaryButton}"
+                                Command="{Binding UseDiscoveredAccountCommand}"
+                                Padding="14,8" Margin="0,0,12,0"/>
+                        <CheckBox Content="Start sync for all folders after connect"
+                                  IsChecked="{Binding StartSyncAfterImport}"
+                                  VerticalAlignment="Center"
+                                  Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding FolderPreviewText}" Style="{StaticResource Caption}"
+                               TextWrapping="Wrap" Foreground="{StaticResource AccentBrush}"
+                               Margin="0,0,0,4"/>
+
+                    <TextBlock Style="{StaticResource Caption}" Foreground="{StaticResource TextMutedBrush}"
+                               TextWrapping="Wrap">
+                        We read server settings only (not passwords). After connect, every folder on your mail server syncs — including folders created by Outlook rules.
+                    </TextBlock>
+                </StackPanel>
+            </Border>
 
             <!-- Account Card -->
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
@@ -155,6 +227,7 @@
                     <TextBlock Style="{StaticResource Caption}" Foreground="{StaticResource TextMutedBrush}"
                                TextWrapping="Wrap" Margin="0,0,0,12">
                         Only messages within this period are downloaded on the first sync per folder. Later syncs fetch new mail only.
+                        All mailbox folders sync (Inbox, Sent, and custom/rule folders) when Settings → Sync all folders is enabled.
                     </TextBlock>
 
                     <ProgressBar Value="{Binding SyncProgress}" Maximum="100" Margin="0,0,0,8"
@@ -175,7 +248,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <Ellipse Grid.Column="0" Width="8" Height="8" Margin="0,0,10,0"
-                                             VerticalAlignment="Center" Fill="{Binding StatusColor}"/>
+                                             VerticalAlignment="Center" Fill="{Binding StatusColor, Converter={StaticResource HexToBrush}}"/>
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding FolderName}" FontSize="13"
                                                    Foreground="{StaticResource TextPrimaryBrush}"/>

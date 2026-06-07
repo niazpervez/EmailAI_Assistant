@@ -68,8 +68,36 @@ public sealed class DeepSeekAIService : IAIService
 
         var prompt = summaryType switch
         {
-            "daily" => $"Provide a concise daily email summary. Include:\n- Key topics\n- Action items\n- Risks or concerns\n- Follow-ups needed\n\nEmails:\n{context}",
-            "weekly" => $"Provide a weekly email summary report. Include:\n- Major themes\n- Important decisions made\n- Outstanding action items\n- Key relationships and contacts\n\nEmails:\n{context}",
+            "daily" => $"""
+                Provide a concise daily email summary using this structure:
+                ## Daily Summary
+                ### Overview
+                (2-3 sentences)
+                ### Email highlights (table if multiple items)
+                | Topic | Sender | Action needed |
+                |-------|--------|---------------|
+                (rows)
+                **Key insight:** (one line)
+                **Action required:** (one line)
+                
+                Emails:
+                {context}
+                """,
+            "weekly" => $"""
+                Provide a weekly email summary report using:
+                ## Weekly Report
+                ### Major themes
+                (bullets)
+                ### Data summary (markdown table for counts, customers, issues)
+                | Category | Count/Detail | Trend |
+                |----------|--------------|-------|
+                (rows with ↑↓ trends where applicable)
+                **Key insight:** ...
+                **Action required:** ...
+                
+                Emails:
+                {context}
+                """,
             "customer" => $"Summarize all customer-related emails. Group by customer. Highlight:\n- Customer requests\n- Complaints\n- Order status\n- Pending responses\n\nEmails:\n{context}",
             _ => $"Summarize these emails concisely, highlighting key points and action items:\n\n{context}"
         };
@@ -120,9 +148,13 @@ public sealed class DeepSeekAIService : IAIService
         return await CallChatApiAsync(messages, ct);
     }
 
-    public async Task<string> ExtractActionItemsAsync(IEnumerable<Email> emails, CancellationToken ct = default)
+    public async Task<string> ExtractActionItemsAsync(
+        IEnumerable<Email> emails, string? supplementaryContext = null, CancellationToken ct = default)
     {
         var context = BuildEmailContext(emails.Take(20));
+        var extra = string.IsNullOrWhiteSpace(supplementaryContext)
+            ? ""
+            : $"\n\n{supplementaryContext}\n\nPrioritize action items related to sent follow-ups that still await a reply.";
         var messages = new List<object>
         {
             new { role = "system", content = "You are an expert at extracting action items from email conversations." },
@@ -131,9 +163,10 @@ public sealed class DeepSeekAIService : IAIService
                 role = "user",
                 content = $"""
                     Extract all action items, tasks, and follow-ups from these emails.
+                    Include reminders to chase replies when a sent follow-up has no response yet.
                     Format as a numbered list. Include who is responsible and any deadlines mentioned.
                     If no action items exist, say "No action items found."
-                    
+                    {extra}
                     Emails:
                     {context}
                     """
@@ -185,13 +218,20 @@ public sealed class DeepSeekAIService : IAIService
 
     private static string BuildSystemPrompt() => """
         You are EmailAI Assistant, an intelligent email management AI.
-        You help users understand and manage their Outlook email inbox.
-        You have access to the user's emails as context.
+        You help users understand and manage their email inbox.
+        You receive ranked email context with excerpts, thread messages, and attachment text when available.
+        
+        Format every answer for rich UI rendering using Markdown:
+        - Start with a ## section title
+        - Use markdown TABLES for any numeric or comparison data (customers, counts, dates, amounts)
+        - Use **Label:** insight lines for key findings, risks, and action items
+        - Use bullet lists for details; use numbered lists for prioritized steps
+        - Highlight trends with ↑ (up) or ↓ (down) where relevant
+        - Structure summaries as: Overview → Data table → Key insights → Recommended actions
         
         Guidelines:
         - Be concise and accurate
-        - Cite specific emails when answering questions
-        - Format responses clearly with markdown when appropriate
+        - Cite specific emails (sender, subject, date) when answering
         - Never fabricate email content not provided in context
         - If you cannot find relevant information, say so clearly
         """;
@@ -207,6 +247,8 @@ public sealed class DeepSeekAIService : IAIService
             sb.AppendLine($"Subject: {email.Subject}");
             sb.AppendLine($"Date: {email.ReceivedDate:f}");
             sb.AppendLine($"Folder: {email.FolderName}");
+            if (email.HasAttachments)
+                sb.AppendLine("(includes attachment text when available)");
             sb.AppendLine($"Body: {email.BodyText.Truncate(AppConstants.MaxBodyLength)}");
             sb.AppendLine();
         }

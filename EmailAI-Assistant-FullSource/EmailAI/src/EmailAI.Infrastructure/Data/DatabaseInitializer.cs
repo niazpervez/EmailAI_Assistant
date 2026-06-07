@@ -38,6 +38,7 @@ public sealed class DatabaseInitializer
         await ExecuteAsync(connection, "PRAGMA cache_size=-64000;", ct); // 64MB cache
 
         await CreateTablesAsync(connection, ct);
+        await RunMigrationsAsync(connection, ct);
         await CreateVirtualTablesAsync(connection, ct);
         await CreateIndexesAsync(connection, ct);
         await SeedDefaultSettingsAsync(connection, ct);
@@ -121,9 +122,52 @@ public sealed class DatabaseInitializer
                 IsEncrypted     INTEGER NOT NULL DEFAULT 0,
                 UpdatedAt       TEXT    NOT NULL DEFAULT (datetime('now'))
             ) STRICT;
+
+            CREATE TABLE IF NOT EXISTS EmailChunks (
+                Id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                ChunkId         TEXT    NOT NULL UNIQUE,
+                EmailRecordId   INTEGER NOT NULL REFERENCES Emails(Id) ON DELETE CASCADE,
+                EmailId         TEXT    NOT NULL,
+                ChunkIndex      INTEGER NOT NULL DEFAULT 0,
+                Source          TEXT    NOT NULL DEFAULT 'body',
+                Content         TEXT    NOT NULL DEFAULT '',
+                CreatedAt       TEXT    NOT NULL DEFAULT (datetime('now'))
+            ) STRICT;
+
+            CREATE TABLE IF NOT EXISTS EmailChunkEmbeddings (
+                Id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                ChunkId         TEXT    NOT NULL UNIQUE,
+                EmailId         TEXT    NOT NULL,
+                VectorData      BLOB    NOT NULL,
+                Dimensions      INTEGER NOT NULL,
+                ModelUsed       TEXT    NOT NULL DEFAULT '',
+                CreatedAt       TEXT    NOT NULL DEFAULT (datetime('now'))
+            ) STRICT;
             """;
 
         await ExecuteAsync(c, sql, ct);
+    }
+
+    private static async Task RunMigrationsAsync(SqliteConnection c, CancellationToken ct)
+    {
+        await TryAddColumnAsync(c, "Emails", "MessageId", "TEXT NOT NULL DEFAULT ''", ct);
+        await ExecuteSingleAsync(c, "CREATE INDEX IF NOT EXISTS idx_emails_messageid ON Emails(MessageId);", ct);
+    }
+
+    private static async Task TryAddColumnAsync(
+        SqliteConnection c, string table, string column, string definition, CancellationToken ct)
+    {
+        await using var cmd = c.CreateCommand();
+        cmd.CommandText = $"PRAGMA table_info({table});";
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var name = reader.GetString(1);
+            if (name.Equals(column, StringComparison.OrdinalIgnoreCase))
+                return;
+        }
+
+        await ExecuteSingleAsync(c, $"ALTER TABLE {table} ADD COLUMN {column} {definition};", ct);
     }
 
     private static async Task CreateVirtualTablesAsync(SqliteConnection c, CancellationToken ct)
@@ -144,6 +188,22 @@ public sealed class DatabaseInitializer
         catch
         {
             // vec extension not available — vector search disabled
+        }
+
+        try
+        {
+            var chunkVecSql = $"""
+                CREATE VIRTUAL TABLE IF NOT EXISTS EmailChunkVectors
+                USING vec0(
+                    chunk_id     TEXT     PRIMARY KEY,
+                    embedding    float[{VecDimensions}]
+                );
+                """;
+            await ExecuteAsync(c, chunkVecSql, ct);
+        }
+        catch
+        {
+            // chunk vec table optional
         }
 
         // FTS5 full-text search on email body + subject (each statement separate — triggers contain ';')
@@ -181,6 +241,40 @@ public sealed class DatabaseInitializer
                 VALUES (new.Id, new.EmailId, new.Subject, new.SenderName, new.BodyText);
             END
             """, ct);
+
+        await ExecuteAsync(c, """
+            CREATE VIRTUAL TABLE IF NOT EXISTS EmailChunksFts
+            USING fts5(
+                chunk_id    UNINDEXED,
+                email_id    UNINDEXED,
+                content,
+                content='EmailChunks',
+                content_rowid='Id'
+            )
+            """, ct);
+
+        await ExecuteSingleAsync(c, """
+            CREATE TRIGGER IF NOT EXISTS email_chunks_ai AFTER INSERT ON EmailChunks BEGIN
+                INSERT INTO EmailChunksFts(rowid, chunk_id, email_id, content)
+                VALUES (new.Id, new.ChunkId, new.EmailId, new.Content);
+            END
+            """, ct);
+
+        await ExecuteSingleAsync(c, """
+            CREATE TRIGGER IF NOT EXISTS email_chunks_ad AFTER DELETE ON EmailChunks BEGIN
+                INSERT INTO EmailChunksFts(EmailChunksFts, rowid, chunk_id, email_id, content)
+                VALUES ('delete', old.Id, old.ChunkId, old.EmailId, old.Content);
+            END
+            """, ct);
+
+        await ExecuteSingleAsync(c, """
+            CREATE TRIGGER IF NOT EXISTS email_chunks_au AFTER UPDATE ON EmailChunks BEGIN
+                INSERT INTO EmailChunksFts(EmailChunksFts, rowid, chunk_id, email_id, content)
+                VALUES ('delete', old.Id, old.ChunkId, old.EmailId, old.Content);
+                INSERT INTO EmailChunksFts(rowid, chunk_id, email_id, content)
+                VALUES (new.Id, new.ChunkId, new.EmailId, new.Content);
+            END
+            """, ct);
     }
 
     private static async Task CreateIndexesAsync(SqliteConnection c, CancellationToken ct)
@@ -193,6 +287,8 @@ public sealed class DatabaseInitializer
             CREATE INDEX IF NOT EXISTS idx_emails_conv        ON Emails(ConversationId);
             CREATE INDEX IF NOT EXISTS idx_attach_email       ON Attachments(EmailId);
             CREATE INDEX IF NOT EXISTS idx_embed_email        ON EmailEmbeddings(EmailId);
+            CREATE INDEX IF NOT EXISTS idx_chunk_email        ON EmailChunks(EmailId);
+            CREATE INDEX IF NOT EXISTS idx_chunk_embed        ON EmailChunkEmbeddings(EmailId);
             CREATE INDEX IF NOT EXISTS idx_chat_session       ON ChatMessages(SessionId, CreatedAt);
             CREATE INDEX IF NOT EXISTS idx_settings_key       ON AppSettings(Key);
             """;
@@ -209,7 +305,7 @@ public sealed class DatabaseInitializer
                 ('Sync:MaxEmailsPerSync',   '500',      0),
                 ('DeepSeek:Model',          'deepseek-chat', 0),
                 ('Embedding:Dimensions',    '1536',     0),
-                ('Database:Version',        '1',        0);
+                ('Database:Version',        '2',        0);
             """;
         await ExecuteAsync(c, sql, ct);
     }

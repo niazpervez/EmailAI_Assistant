@@ -1,6 +1,8 @@
 using Dapper;
+using EmailAI.Core;
 using EmailAI.Core.Entities;
 using EmailAI.Core.Interfaces;
+using EmailAI.Core.Models;
 using EmailAI.Infrastructure.Data;
 using Microsoft.Extensions.Logging;
 
@@ -66,7 +68,7 @@ public sealed class EmailRepository : IEmailRepository
         await using var c = await _factory.OpenAsync(ct);
         try
         {
-            // FTS5 match
+            var ftsQuery = BuildFtsQuery(keyword);
             return await c.QueryAsync<Email>(
                 """
                 SELECT e.* FROM Emails e
@@ -75,7 +77,7 @@ public sealed class EmailRepository : IEmailRepository
                 ORDER BY rank
                 LIMIT @limit
                 """,
-                new { keyword = $"{keyword}*", limit });
+                new { keyword = ftsQuery, limit });
         }
         catch
         {
@@ -88,6 +90,29 @@ public sealed class EmailRepository : IEmailRepository
                 """,
                 new { kw = $"%{keyword}%", limit });
         }
+    }
+
+    private static string BuildFtsQuery(string keyword)
+    {
+        var terms = keyword
+            .Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(SanitizeFtsTerm)
+            .Where(t => t.Length > 0)
+            .Select(t => $"{t}*")
+            .ToList();
+
+        return terms.Count switch
+        {
+            0 => keyword,
+            1 => terms[0],
+            _ => string.Join(" OR ", terms)
+        };
+    }
+
+    private static string SanitizeFtsTerm(string term)
+    {
+        var cleaned = new string(term.Where(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_').ToArray());
+        return cleaned.Trim('-', '_');
     }
 
     public async Task<IEnumerable<Email>> GetBySenderAsync(string senderEmail, int limit = 50, CancellationToken ct = default)
@@ -154,15 +179,16 @@ public sealed class EmailRepository : IEmailRepository
         return await c.ExecuteScalarAsync<int>(
             """
             INSERT INTO Emails
-                (EmailId, ConversationId, Subject, Sender, SenderName, Recipients,
+                (EmailId, ConversationId, MessageId, Subject, Sender, SenderName, Recipients,
                  ReceivedDate, BodyText, BodyHtml, FolderName, FolderId,
                  HasAttachments, IsRead, IsImportant, Importance, SyncedAt, ChangeKey)
             VALUES
-                (@EmailId, @ConversationId, @Subject, @Sender, @SenderName, @Recipients,
+                (@EmailId, @ConversationId, @MessageId, @Subject, @Sender, @SenderName, @Recipients,
                  @ReceivedDate, @BodyText, @BodyHtml, @FolderName, @FolderId,
                  @HasAttachments, @IsRead, @IsImportant, @Importance, @SyncedAt, @ChangeKey)
             ON CONFLICT(EmailId) DO UPDATE SET
                 Subject        = excluded.Subject,
+                MessageId      = CASE WHEN excluded.MessageId != '' THEN excluded.MessageId ELSE MessageId END,
                 IsRead         = excluded.IsRead,
                 SyncedAt       = excluded.SyncedAt,
                 ChangeKey      = excluded.ChangeKey
@@ -184,23 +210,136 @@ public sealed class EmailRepository : IEmailRepository
             await c.ExecuteAsync(
                 """
                 INSERT INTO Emails
-                    (EmailId, ConversationId, Subject, Sender, SenderName, Recipients,
+                    (EmailId, ConversationId, MessageId, Subject, Sender, SenderName, Recipients,
                      ReceivedDate, BodyText, BodyHtml, FolderName, FolderId,
                      HasAttachments, IsRead, IsImportant, Importance, SyncedAt, ChangeKey)
                 VALUES
-                    (@EmailId, @ConversationId, @Subject, @Sender, @SenderName, @Recipients,
+                    (@EmailId, @ConversationId, @MessageId, @Subject, @Sender, @SenderName, @Recipients,
                      @ReceivedDate, @BodyText, @BodyHtml, @FolderName, @FolderId,
                      @HasAttachments, @IsRead, @IsImportant, @Importance, @SyncedAt, @ChangeKey)
                 ON CONFLICT(EmailId) DO UPDATE SET
-                    Subject  = excluded.Subject,
-                    IsRead   = excluded.IsRead,
-                    SyncedAt = excluded.SyncedAt,
-                    ChangeKey= excluded.ChangeKey;
+                    Subject   = excluded.Subject,
+                    MessageId = CASE WHEN excluded.MessageId != '' THEN excluded.MessageId ELSE MessageId END,
+                    IsRead    = excluded.IsRead,
+                    SyncedAt  = excluded.SyncedAt,
+                    ChangeKey = excluded.ChangeKey;
                 """,
                 email, tx);
         }
 
         await tx.CommitAsync(ct);
         _logger.LogDebug("Upserted batch of {Count} emails", list.Count);
+    }
+
+    public async Task<IEnumerable<Email>> GetWithUnprocessedAttachmentsAsync(int limit = 50, CancellationToken ct = default)
+    {
+        await using var c = await _factory.OpenAsync(ct);
+        return await c.QueryAsync<Email>(
+            """
+            SELECT e.* FROM Emails e
+            WHERE e.HasAttachments = 1
+              AND NOT EXISTS (SELECT 1 FROM Attachments a WHERE a.EmailId = e.EmailId)
+            ORDER BY e.ReceivedDate DESC
+            LIMIT @limit
+            """,
+            new { limit });
+    }
+
+    public async Task<IEnumerable<Email>> GetByConversationIdAsync(
+        string conversationId, int limit = 20, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(conversationId)) return [];
+
+        await using var c = await _factory.OpenAsync(ct);
+        return await c.QueryAsync<Email>(
+            """
+            SELECT * FROM Emails
+            WHERE ConversationId = @conversationId
+            ORDER BY ReceivedDate ASC
+            LIMIT @limit
+            """,
+            new { conversationId, limit });
+    }
+
+    public async Task<IEnumerable<FolderSummary>> GetFolderSummariesAsync(CancellationToken ct = default)
+    {
+        await using var c = await _factory.OpenAsync(ct);
+        return await c.QueryAsync<FolderSummary>(
+            """
+            SELECT FolderName,
+                   COUNT(*) AS TotalCount,
+                   SUM(CASE WHEN IsRead = 0 THEN 1 ELSE 0 END) AS UnreadCount
+            FROM Emails
+            GROUP BY FolderName
+            ORDER BY FolderName
+            """);
+    }
+
+    public async Task<IEnumerable<Email>> GetRecentSentAsync(int days = 14, int limit = 100, CancellationToken ct = default)
+    {
+        await using var c = await _factory.OpenAsync(ct);
+        var cutoff = DateTime.UtcNow.AddDays(-days).ToString("yyyy-MM-ddTHH:mm:ss");
+        return await c.QueryAsync<Email>(
+            """
+            SELECT * FROM Emails
+            WHERE FolderName = 'Sent' AND ReceivedDate >= @cutoff
+            ORDER BY ReceivedDate DESC
+            LIMIT @limit
+            """,
+            new { cutoff, limit });
+    }
+
+    public async Task<Email?> FindFirstReplyToAsync(Email sentEmail, CancellationToken ct = default)
+    {
+        var threadIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(sentEmail.MessageId))
+            threadIds.Add(sentEmail.MessageId.Trim());
+        if (!string.IsNullOrWhiteSpace(sentEmail.ConversationId))
+            threadIds.Add(sentEmail.ConversationId.Trim());
+
+        var sentDate = sentEmail.ReceivedDate.ToString("yyyy-MM-ddTHH:mm:ss");
+        await using var c = await _factory.OpenAsync(ct);
+
+        if (threadIds.Count > 0)
+        {
+            var byThread = await c.QueryFirstOrDefaultAsync<Email>(
+                """
+                SELECT * FROM Emails
+                WHERE FolderName != 'Sent'
+                  AND ReceivedDate > @sentDate
+                  AND ConversationId IN @threadIds
+                ORDER BY ReceivedDate ASC
+                LIMIT 1
+                """,
+                new { sentDate, threadIds = threadIds.ToList() });
+            if (byThread is not null) return byThread;
+        }
+
+        var normSubject = SentFollowUpHelper.NormalizeSubject(sentEmail.Subject);
+        if (string.IsNullOrWhiteSpace(normSubject)) return null;
+
+        var recipients = SentFollowUpHelper.ParseRecipientEmails(sentEmail.Recipients);
+        if (recipients.Count == 0) return null;
+
+        var candidates = (await c.QueryAsync<Email>(
+            """
+            SELECT * FROM Emails
+            WHERE FolderName != 'Sent'
+              AND ReceivedDate > @sentDate
+              AND (Subject LIKE @exactSubject OR Subject LIKE @reSubject)
+            ORDER BY ReceivedDate ASC
+            LIMIT 20
+            """,
+            new
+            {
+                sentDate,
+                exactSubject = normSubject,
+                reSubject = $"Re: {normSubject}%"
+            })).ToList();
+
+        return candidates.FirstOrDefault(e =>
+            recipients.Any(r =>
+                e.Sender.Equals(r, StringComparison.OrdinalIgnoreCase)
+                || e.Sender.Contains(r, StringComparison.OrdinalIgnoreCase)));
     }
 }

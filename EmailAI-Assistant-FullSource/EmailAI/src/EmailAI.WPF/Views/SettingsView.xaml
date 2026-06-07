@@ -56,7 +56,7 @@
                                 Click="SaveApiKey_Click" Margin="8,0,0,0" Padding="16,8"/>
                     </Grid>
                     <TextBlock Text="{Binding ApiKeyStatus}" Margin="0,6,0,0" FontSize="12"
-                               Foreground="{Binding ApiKeyStatusBrush}"/>
+                               Foreground="{Binding ApiKeyStatusColor, Converter={StaticResource HexToBrush}}"/>
 
                     <Separator Margin="0,12"/>
 
@@ -176,7 +176,7 @@
                     HorizontalAlignment="Left" Margin="0,16,0,0" Padding="20,10" FontSize="14"/>
 
             <TextBlock Text="{Binding SaveStatus}" Margin="0,8,0,0" FontSize="12"
-                       Foreground="{Binding SaveStatusBrush}"/>
+                       Foreground="{Binding SaveStatusColor, Converter={StaticResource HexToBrush}}"/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

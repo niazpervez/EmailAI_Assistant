@@ -4,5 +4,9 @@ namespace EmailAI.WPF.Views;
 
 public partial class ChatView : UserControl
 {
-    public ChatView() => InitializeComponent();
+    public ChatView()
+    {
+        InitializeComponent();
+        Loaded += (_, _) => InputBox.Focus();
+    }
 }

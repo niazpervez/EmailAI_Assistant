@@ -619,6 +619,7 @@ public sealed class ImapMailService : CoreMailService
         {
             EmailId = $"{folderId}|{summary.UniqueId.Id}",
             ConversationId = msg.InReplyTo ?? msg.MessageId ?? "",
+            MessageId = msg.MessageId ?? "",
             Subject = msg.Subject ?? "(No Subject)",
             Sender = from?.Address ?? "",
             SenderName = from?.Name ?? from?.Address ?? "",

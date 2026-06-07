@@ -9,11 +9,9 @@ public sealed class SyncService : ISyncService
 {
     private readonly IMailService _mail;
     private readonly IEmailRepository _emails;
-    private readonly IEmbeddingRepository _embeddings;
-    private readonly IEmbeddingService _embeddingService;
     private readonly ISyncStateRepository _syncStates;
-    private readonly IAttachmentRepository _attachments;
-    private readonly IAttachmentExtractor _extractor;
+    private readonly IAttachmentContextService _attachmentContext;
+    private readonly IChunkIndexingService _chunkIndexing;
     private readonly ISettingsRepository _settings;
     private readonly ILogger<SyncService> _logger;
 
@@ -24,18 +22,15 @@ public sealed class SyncService : ISyncService
     public SyncService(
         IMailService mail,
         IEmailRepository emails,
-        IEmbeddingRepository embeddings,
-        IEmbeddingService embeddingService,
         ISyncStateRepository syncStates,
-        IAttachmentRepository attachments,
-        IAttachmentExtractor extractor,
+        IAttachmentContextService attachmentContext,
+        IChunkIndexingService chunkIndexing,
         ISettingsRepository settings,
         ILogger<SyncService> logger)
     {
-        _mail = mail; _emails = emails; _embeddings = embeddings;
-        _embeddingService = embeddingService; _syncStates = syncStates;
-        _attachments = attachments; _extractor = extractor;
-        _settings = settings; _logger = logger;
+        _mail = mail; _emails = emails; _syncStates = syncStates;
+        _attachmentContext = attachmentContext;
+        _chunkIndexing = chunkIndexing; _settings = settings; _logger = logger;
     }
 
     public Task<bool> IsRunningAsync() => Task.FromResult(_isRunning);
@@ -101,6 +96,9 @@ public sealed class SyncService : ISyncService
                 if (ct.IsCancellationRequested) break;
                 await SyncFolderAsync(folder.Id, folder.DisplayName, progress, syncOptions, ct);
             }
+
+            await BackfillAttachmentsAsync(progress, ct);
+            await BackfillChunkIndexAsync(progress, ct);
         }
         finally
         {
@@ -144,11 +142,10 @@ public sealed class SyncService : ISyncService
                     await _emails.UpsertBatchAsync(newEmails, ct);
                     _logger.LogInformation("Saved {Count} emails from {Folder}", newEmails.Count, folderName);
 
-                    // Generate embeddings for new emails
-                    await GenerateEmbeddingsAsync(newEmails, folderName, progress, totalProcessed, ct);
+                    // Process attachments before embeddings (do not use sync ct — it may be cancelled when sync ends)
+                    await _attachmentContext.ProcessBatchAsync(newEmails, CancellationToken.None);
 
-                    // Process attachments in background
-                    _ = Task.Run(() => ProcessAttachmentsAsync(newEmails, ct), ct);
+                    await IndexChunksAsync(newEmails, folderName, progress, totalProcessed, ct);
                 }
 
                 totalProcessed += result.Emails.Count;
@@ -177,7 +174,7 @@ public sealed class SyncService : ISyncService
         }
     }
 
-    private async Task GenerateEmbeddingsAsync(
+    private async Task IndexChunksAsync(
         IEnumerable<Email> emails, string folderName,
         IProgress<SyncProgress>? progress, int baseCount, CancellationToken ct)
     {
@@ -185,83 +182,29 @@ public sealed class SyncService : ISyncService
         for (int i = 0; i < list.Count; i++)
         {
             if (ct.IsCancellationRequested) break;
-            var email = list[i];
-
-            if (await _embeddings.ExistsAsync(email.EmailId, ct)) continue;
-
-            try
-            {
-                var text = $"{email.Subject}\n{email.SenderName}\n{email.BodyText}".Truncate(6000);
-                var vector = await _embeddingService.GenerateAsync(text, ct);
-
-                var dbEmail = await _emails.GetByEmailIdAsync(email.EmailId, ct);
-                if (dbEmail is null) continue;
-
-                await _embeddings.UpsertAsync(new EmailEmbedding
-                {
-                    EmailRecordId = dbEmail.Id,
-                    EmailId = email.EmailId,
-                    Vector = vector,
-                    Dimensions = vector.Length,
-                    ModelUsed = _embeddingService.ModelName,
-                    CreatedAt = DateTime.UtcNow
-                }, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Embedding failed for {EmailId}", email.EmailId);
-            }
-
-            Report(progress, folderName, baseCount + i + 1, list.Count, $"Embedding {i + 1}/{list.Count}");
+            await _chunkIndexing.IndexEmailAsync(list[i].EmailId, ct);
+            Report(progress, folderName, baseCount + i + 1, list.Count, $"Indexing {i + 1}/{list.Count}");
         }
     }
 
-    private async Task ProcessAttachmentsAsync(IEnumerable<Email> emails, CancellationToken ct)
+    private async Task BackfillChunkIndexAsync(IProgress<SyncProgress>? progress, CancellationToken ct)
     {
-        foreach (var email in emails.Where(e => e.HasAttachments))
-        {
-            if (ct.IsCancellationRequested) break;
-            try
-            {
-                var dbEmail = await _emails.GetByEmailIdAsync(email.EmailId, ct);
-                if (dbEmail is null) continue;
+        Report(progress, "—", 0, 0, "Building search index for emails…");
+        await _chunkIndexing.BackfillAsync(AppConstants.ChunkBackfillBatchSize, ct);
+    }
 
-                var attachments = await _mail.GetAttachmentsAsync(email.EmailId, ct);
-                foreach (var info in attachments)
-                {
-                    var attachmentKey = $"{email.EmailId}|{info.Id}";
-                    if (await _attachments.ExistsAsync(attachmentKey, ct)) continue;
+    private async Task BackfillAttachmentsAsync(IProgress<SyncProgress>? progress, CancellationToken ct)
+    {
+        const int batchSize = 25;
+        var pending = (await _emails.GetWithUnprocessedAttachmentsAsync(batchSize, ct)).ToList();
+        if (pending.Count == 0) return;
 
-                    var record = new Attachment
-                    {
-                        AttachmentId = attachmentKey,
-                        EmailRecordId = dbEmail.Id,
-                        EmailId = email.EmailId,
-                        FileName = info.FileName,
-                        ContentType = info.ContentType,
-                        SizeBytes = info.SizeBytes,
-                        CreatedAt = DateTime.UtcNow
-                    };
+        Report(progress, "—", 0, pending.Count, $"Processing {pending.Count} attachment(s) from earlier sync…");
+        await _attachmentContext.ProcessBatchAsync(pending, CancellationToken.None);
+        _logger.LogInformation("Backfilled attachments for {Count} email(s)", pending.Count);
 
-                    if (_extractor.CanExtract(info.ContentType, info.FileName))
-                    {
-                        var bytes = await _mail.GetAttachmentContentAsync(email.EmailId, info.Id, ct);
-                        if (bytes is not null)
-                        {
-                            record.ExtractedText = await _extractor.ExtractTextAsync(
-                                bytes, info.ContentType, info.FileName, ct);
-                            record.IsTextExtracted = !string.IsNullOrWhiteSpace(record.ExtractedText);
-                        }
-                    }
-
-                    await _attachments.InsertAsync(record, ct);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Attachment processing failed for {EmailId}", email.EmailId);
-            }
-        }
+        // Re-index emails that now have attachment text
+        await _chunkIndexing.BackfillAsync(Math.Min(pending.Count, AppConstants.ChunkBackfillBatchSize), ct);
     }
 
     private async Task<SyncOptions> LoadSyncOptionsAsync(CancellationToken ct)

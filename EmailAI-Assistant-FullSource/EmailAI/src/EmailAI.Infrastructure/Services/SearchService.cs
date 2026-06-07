@@ -1,3 +1,4 @@
+using EmailAI.Core;
 using EmailAI.Core.Entities;
 using EmailAI.Core.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -9,16 +10,19 @@ public sealed class SearchService : ISearchService
     private readonly IEmailRepository _emails;
     private readonly IEmbeddingRepository _embeddings;
     private readonly IEmbeddingService _embeddingService;
+    private readonly IAttachmentRepository _attachments;
     private readonly ILogger<SearchService> _logger;
 
     public SearchService(
         IEmailRepository emails,
         IEmbeddingRepository embeddings,
         IEmbeddingService embeddingService,
+        IAttachmentRepository attachments,
         ILogger<SearchService> logger)
     {
         _emails = emails; _embeddings = embeddings;
-        _embeddingService = embeddingService; _logger = logger;
+        _embeddingService = embeddingService; _attachments = attachments;
+        _logger = logger;
     }
 
     public async Task<IEnumerable<Email>> SearchAsync(
@@ -47,25 +51,32 @@ public sealed class SearchService : ISearchService
 
     private async Task<IEnumerable<Email>> HybridSearchAsync(string query, int limit, CancellationToken ct)
     {
-        // Run both searches in parallel
         var keywordTask = KeywordSearchAsync(query, limit, ct);
         var semanticTask = SemanticSearchAsync(query, limit, ct);
+        var attachmentTask = AttachmentSearchAsync(query, limit, ct);
 
-        await Task.WhenAll(keywordTask, semanticTask);
+        await Task.WhenAll(keywordTask, semanticTask, attachmentTask);
 
-        // Merge results: semantic results first (higher relevance), then keyword-only results
         var semantic = (await semanticTask).ToList();
         var keyword = (await keywordTask).ToList();
+        var attachment = (await attachmentTask).ToList();
 
         var merged = semantic.ToList();
         var seenIds = new HashSet<string>(merged.Select(e => e.EmailId));
 
-        foreach (var e in keyword)
+        foreach (var e in keyword.Concat(attachment))
         {
             if (seenIds.Add(e.EmailId))
                 merged.Add(e);
         }
 
         return merged.Take(limit);
+    }
+
+    private async Task<IEnumerable<Email>> AttachmentSearchAsync(string query, int limit, CancellationToken ct)
+    {
+        var emailIds = (await _attachments.SearchEmailIdsByExtractedTextAsync(query, limit, ct)).ToList();
+        if (emailIds.Count == 0) return [];
+        return await _emails.GetByIdsAsync(emailIds, ct);
     }
 }

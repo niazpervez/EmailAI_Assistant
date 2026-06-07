@@ -1,5 +1,7 @@
 namespace EmailAI.Core;
 
+using EmailAI.Core.DTOs;
+
 public static class MailProviderDetector
 {
     private static readonly string[] MicrosoftDomains =
@@ -40,4 +42,14 @@ public static class MailProviderDetector
         => IsGoogleEmail(email) ||
            (!string.IsNullOrWhiteSpace(imapHost) &&
             imapHost.Contains("gmail", StringComparison.OrdinalIgnoreCase));
+
+    public static MailProvider InferProvider(string? email, string? imapHost, string? smtpHost = null)
+    {
+        if (LooksLikeGoogle(email, imapHost)) return MailProvider.Gmail;
+        if (LooksLikeMicrosoft(email, imapHost, smtpHost)) return MailProvider.Outlook;
+        if (!string.IsNullOrWhiteSpace(imapHost) &&
+            imapHost.Contains("yahoo", StringComparison.OrdinalIgnoreCase))
+            return MailProvider.Yahoo;
+        return MailProvider.Custom;
+    }
 }

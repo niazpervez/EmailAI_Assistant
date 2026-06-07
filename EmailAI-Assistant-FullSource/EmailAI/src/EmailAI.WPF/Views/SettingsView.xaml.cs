@@ -1,5 +1,5 @@
 using CommunityToolkit.Mvvm.Input;
-using EmailAI.WPF.ViewModels;
+using EmailAI.UI.Shared.ViewModels;
 using System.Windows.Controls;
 
 namespace EmailAI.WPF.Views;

@@ -1,0 +1,5 @@
+<UserControl x:Class="EmailAI.WPF.Controls.MarkdownTextBlock"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel x:Name="ContentPanel"/>
+</UserControl>

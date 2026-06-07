@@ -19,8 +19,8 @@
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\EmailAI.Application\EmailAI.Application.csproj" />
-    <ProjectReference Include="..\EmailAI.Infrastructure\EmailAI.Infrastructure.csproj" />
+    <ProjectReference Include="..\EmailAI.Composition\EmailAI.Composition.csproj" />
+    <ProjectReference Include="..\EmailAI.UI.Shared\EmailAI.UI.Shared.csproj" />
     <ProjectReference Include="..\EmailAI.Core\EmailAI.Core.csproj" />
   </ItemGroup>
   <ItemGroup>

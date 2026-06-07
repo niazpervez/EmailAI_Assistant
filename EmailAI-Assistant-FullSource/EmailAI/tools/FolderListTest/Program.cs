@@ -12,7 +12,7 @@ var dbPath = Path.Combine(appData, "emailai.db");
 
 var services = new ServiceCollection();
 services.AddSingleton(_ => new DatabaseConnectionFactory(dbPath));
-services.AddSingleton<IEncryptionService, DpapiEncryptionService>();
+services.AddSingleton<IEncryptionService, PlatformEncryptionService>();
 services.AddSingleton<ISettingsRepository, SettingsRepository>();
 services.AddSingleton<MailOAuthService>();
 services.AddHttpClient();

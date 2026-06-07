@@ -46,7 +46,7 @@ public interface IAIService
     Task<string> ChatAsync(string userMessage, IEnumerable<Email> contextEmails, IEnumerable<ChatMessage> history, CancellationToken ct = default);
     Task<string> SummarizeEmailsAsync(IEnumerable<Email> emails, string summaryType, CancellationToken ct = default);
     Task<string> GenerateReplyAsync(Email email, string replyType, string? userInstructions = null, CancellationToken ct = default);
-    Task<string> ExtractActionItemsAsync(IEnumerable<Email> emails, CancellationToken ct = default);
+    Task<string> ExtractActionItemsAsync(IEnumerable<Email> emails, string? supplementaryContext = null, CancellationToken ct = default);
 }
 
 // ── Sync ─────────────────────────────────────────────────────────────────────
@@ -69,6 +69,14 @@ public interface IAttachmentExtractor
     bool CanExtract(string contentType, string fileName);
 }
 
+public interface IAttachmentContextService
+{
+    Task EnsureProcessedAsync(string emailId, CancellationToken ct = default);
+    Task ProcessBatchAsync(IEnumerable<Email> emails, CancellationToken ct = default);
+    Task<string> GetContextForEmailAsync(string emailId, CancellationToken ct = default);
+    Task<IEnumerable<Email>> EnrichForChatAsync(IEnumerable<Email> emails, CancellationToken ct = default);
+}
+
 // ── Search ───────────────────────────────────────────────────────────────────
 
 public interface ISearchService
@@ -77,6 +85,33 @@ public interface ISearchService
 }
 
 public enum SearchMode { Keyword, Semantic, Hybrid }
+
+public interface ITextChunker
+{
+    IEnumerable<(int Index, string Source, string Content)> BuildChunks(Email email, string? attachmentText);
+}
+
+public interface IChunkIndexingService
+{
+    Task IndexEmailAsync(string emailId, CancellationToken ct = default);
+    Task IndexBatchAsync(IEnumerable<Email> emails, CancellationToken ct = default);
+    Task BackfillAsync(int batchSize = 50, CancellationToken ct = default);
+}
+
+public interface IRagSearchService
+{
+    Task<RagSearchResult> SearchAsync(string query, int emailLimit = 15, CancellationToken ct = default);
+}
+
+// ── External mail client import ───────────────────────────────────────────────
+
+public interface IExternalMailImportService
+{
+    Task<InstalledMailClientsInfo> DetectInstalledClientsAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<DiscoveredMailAccount>> DiscoverAccountsAsync(
+        ExternalMailClient? client = null, CancellationToken ct = default);
+    MailAccountConfig ToMailAccountConfig(DiscoveredMailAccount account);
+}
 
 // ── Security ─────────────────────────────────────────────────────────────────
 
