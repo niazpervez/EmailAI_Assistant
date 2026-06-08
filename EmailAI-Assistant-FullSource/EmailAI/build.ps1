@@ -32,6 +32,8 @@ $Root     = $PSScriptRoot
 $SrcDir   = Join-Path $Root "src"
 $WpfProj  = Join-Path $SrcDir "EmailAI.WPF\EmailAI.WPF.csproj"
 $PublishDir = Join-Path $Root "publish\win-x64"
+$DistDir  = Join-Path $Root "dist\EmailAIAssistant-$Version-win-x64"
+$DistZip  = Join-Path $Root "dist\EmailAIAssistant-$Version-win-x64.zip"
 $InstallerDir = Join-Path $Root "installer"
 $OutMsi   = Join-Path $Root "EmailAIAssistant-$Version-Setup.msi"
 
@@ -91,7 +93,36 @@ if ((Test-Path $PublishedVec) -and (Get-Item $PublishedVec).Length -lt 4096) {
     Write-Host "   Removed invalid vec0.dll placeholder from publish output" -ForegroundColor Yellow
 }
 
-# ── Step 4: Build MSI ────────────────────────────────────────────────────────
+# ── Step 4: Package portable deployment (exe + native deps) ───────────────────
+Write-Host ">> Packaging portable deployment…" -ForegroundColor Yellow
+if (Test-Path $DistDir) { Remove-Item $DistDir -Recurse -Force }
+New-Item -ItemType Directory -Path $DistDir -Force | Out-Null
+
+# Ship runtime files only (no debug symbols)
+Get-ChildItem $PublishDir -File | Where-Object { $_.Extension -ne '.pdb' } | ForEach-Object {
+    Copy-Item $_.FullName -Destination $DistDir -Force
+}
+if (Test-Path (Join-Path $PublishDir "native")) {
+    Copy-Item (Join-Path $PublishDir "native") -Destination $DistDir -Recurse -Force
+}
+
+$PublishedExe = Join-Path $DistDir "EmailAI.WPF.exe"
+$FriendlyExe  = Join-Path $DistDir "EmailAIAssistant.exe"
+if (Test-Path $PublishedExe) {
+    Copy-Item $PublishedExe -Destination $FriendlyExe -Force
+}
+
+if (Test-Path $DistZip) { Remove-Item $DistZip -Force }
+New-Item -ItemType Directory -Force -Path (Split-Path $DistZip) | Out-Null
+Compress-Archive -Path "$DistDir\*" -DestinationPath $DistZip -Force
+
+$ExeMB  = if (Test-Path $FriendlyExe) { [math]::Round((Get-Item $FriendlyExe).Length / 1MB, 1) } else { 0 }
+$ZipMB  = [math]::Round((Get-Item $DistZip).Length / 1MB, 1)
+Write-Host "   Portable folder: $DistDir" -ForegroundColor Green
+Write-Host "   Launcher exe:    $FriendlyExe ($ExeMB MB)" -ForegroundColor Green
+Write-Host "   Zip package:     $DistZip ($ZipMB MB)" -ForegroundColor Green
+
+# ── Step 5: Build MSI ────────────────────────────────────────────────────────
 if (-not $SkipMsi) {
     Write-Host ">> Building MSI installer with WiX 4…" -ForegroundColor Yellow
 
@@ -113,7 +144,8 @@ if (-not $SkipMsi) {
 } else {
     Write-Host ""
     Write-Host "=== BUILD COMPLETE (MSI skipped) ===" -ForegroundColor Green
-    Write-Host "Published output: $PublishDir" -ForegroundColor Green
+    Write-Host "Run: $FriendlyExe" -ForegroundColor Green
+    Write-Host "Or distribute: $DistZip" -ForegroundColor Green
 }
 
 Write-Host ""
